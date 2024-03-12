@@ -131,3 +131,19 @@ caption {
 th {
     background: #eee;
 }
+/* styles.css */
+/* Estilos para el contenedor de la tabla y la gráfica */
+#table-and-graph-container {
+    display: flex; /* Utilizamos flexbox para alinear horizontalmente */
+    justify-content: space-between; /* Distribuimos el espacio entre los elementos */
+}
+
+/* Estilos para la tabla */
+#table-container {
+    width: 48%; /* Establecemos un ancho para la tabla */
+}
+
+/* Estilos para la gráfica */
+#graph-container {
+    width: 48%; /* Establecemos un ancho para la gráfica */
+}
