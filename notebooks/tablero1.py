@@ -4,9 +4,6 @@ import pandas as pd
 import io
 import base64
 import plotly.express as px
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from dash.dependencies import Input, Output, State
 import numpy as np
@@ -136,6 +133,13 @@ def update_selected_columns(n_clicks, contents, filename, selected_variables, in
             # Organizar los resultados del análisis de varianza (ANOVA) en formato legible
             anova_text = organizar_resultados_anova(anova)
             
+            # Crear la tabla con los coeficientes
+            table_header = html.Tr([html.Th('Variable'), html.Th('Coeficiente')])
+            table_rows = [
+                html.Tr([html.Td(selected_variables[i]), html.Td(coef[i])]) for i in range(len(selected_variables))
+            ]
+            coef_table = html.Table([table_header] + table_rows)
+            
             # Actualizar el texto de las columnas seleccionadas con los resultados
             selected_columns_text = (
                 f'Variables seleccionadas: {selected_variables}\n'
@@ -143,14 +147,15 @@ def update_selected_columns(n_clicks, contents, filename, selected_variables, in
                 f'Pérdida del modelo: {loss}\n'
                 f'Resultados del análisis de varianza (ANOVA):\n{anova_text}'
             )
-            with open('regresion.png', 'rb') as file:
-                encoded_image = base64.b64encode(file.read()).decode('utf-8')
-            graph_component1 = html.Img(src=f'data:image/png;base64,{encoded_image}')
-            with open('influence.png', 'rb') as file:
-                encoded_image = base64.b64encode(file.read()).decode('utf-8')
-            graph_component2 = html.Img(src=f'data:image/png;base64,{encoded_image}')
-            return [html.P(selected_columns_text), graph_component1,graph_component2]
+            
+            # Generar gráficos con Plotly Express
+            fig1 = px.scatter(x=y_test, y=y_pred, labels={'x': 'Valores reales', 'y': 'Prediccion del modelo'}, title='Regresion')
+            fig1.add_scatter(x=[y_test.min(), y_test.max()], y=[y_test.min(), y_test.max()], mode='lines', line=dict(color='red', dash='dash'), name='Línea de referencia y=x')
+            # Aquí deberías generar el gráfico para 'influence.png' usando Plotly Express si es posible.
+            
+            return [html.P(selected_columns_text), coef_table, dcc.Graph(figure=fig1)]  # Agregar la tabla de coeficientes al retorno
     return None
+
 def organizar_resultados_anova(anova):
     # Acceder a las tablas de resultados dentro del objeto Summary
     tables = anova.tables
@@ -162,6 +167,7 @@ def organizar_resultados_anova(anova):
     df_coeficientes = pd.DataFrame(coeficientes_table.data[1:], columns=coeficientes_table.data[0])
 
     return df_coeficientes
+
 def crearmodelo(df,features,resp):
     features=features
     x = df[features]
@@ -171,15 +177,15 @@ def crearmodelo(df,features,resp):
     X_train, X_test, y_train, y_test = train_test_split(x, y, random_state=1, test_size=0.2)
     linreg = LinearRegression()
     linreg.fit(X_train, y_train)
-    coef = linreg.intercept_
+    coef = list(zip(features, linreg.coef_))
     y_pred = linreg.predict(X_test)
-    plt.scatter(y_test, y_pred, color='blue')
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], linestyle='--', color='red')  # Línea de referencia y=x
-    plt.xlabel('Valores reales')
-    plt.ylabel('Prediccion del modelo')
-    plt.title('Regresion')
-    plt.savefig("regresion.png")
-    plt.close()
+    # plt.scatter(y_test, y_pred, color='blue')  # Esto ya no es necesario
+    # plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], linestyle='--', color='red')  # Esto tampoco
+    # plt.xlabel('Valores reales')
+    # plt.ylabel('Prediccion del modelo')
+    # plt.title('Regresion')
+    # plt.savefig("regresion.png")
+    # plt.close()
     #Ahora metricas
     MAE = metrics.mean_absolute_error(y_test, y_pred)
     MSE = metrics.mean_squared_error(y_test, y_pred)
@@ -192,11 +198,10 @@ def crearmodelo(df,features,resp):
     X_train = sm.add_constant(X_train)
     model = sm.OLS(y_train, X_train).fit()
     anova = model.summary()
-    fig = sm.graphics.influence_plot(model, criterion="cooks")
-    fig.savefig('influence.png')
-    plt.close(fig)
+    # fig = sm.graphics.influence_plot(model, criterion="cooks")  # Ya no es necesario
+    # fig.savefig('influence.png')
+    # plt.close(fig)
     return coef,loss,anova,y_test,y_pred
-
 
 if __name__ == '__main__':
     app.run_server(debug=True)
